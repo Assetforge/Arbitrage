@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import matplotlib.pyplot as plt
 import numpy as np
+import math
 
 
 # Initialize your API Keys and Secrets for Binance and Bybit
