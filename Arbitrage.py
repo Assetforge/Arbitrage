@@ -31,6 +31,9 @@ def get_binance_price(symbol):
 
     return bid_price, ask_price, spread
 
+print(get_binance_price("SOLUSDT"))
+
+
 # Function to get current price from Bybit, SYMBUSDT is a string
 
 def get_bybit_price(symbol):
@@ -48,6 +51,8 @@ def get_bybit_price(symbol):
 
     return bid_price, ask_price, spread
 
+print(get_bybit_price("SOLUSDT"))
+
 
 def is_ao(symbol, seuil): #Boolean function which returns true if there exists an arbitrage opportunity.
 
@@ -61,7 +66,7 @@ def is_ao(symbol, seuil): #Boolean function which returns true if there exists a
     else :
         return False
 
-is_ao('TRBUSDT', 0.05)
+print(is_ao('TRBUSDT', 0.05))
 
 # Function to place an order on Binance
 def binance_order(side, quantity):
