@@ -7,6 +7,7 @@ import numpy as np
 import math
 from binance.client import Client
 from binance.enums import *
+from pybit.unified_trading import HTTP
 
 # Initialize your API Keys and Secrets for Binance and Bybit
 BINANCE_API_KEY = 'FAwoao710g15n9CYv3FXiaclCpGN59V8XK8ipHIyi6wykO6JrSmPa0optsmH02W3'
@@ -51,63 +52,88 @@ def get_bybit_price(symbol):
     return bid_price, ask_price, spread
 
 
-def is_ao(symbol, seuil):  # Boolean function which returns true if there exists an arbitrage opportunity.
+def is_ao(symbol, seuil):  # Boolean function which returns true if there exists an arbitrage opportunity. Seuil between 0 and 1
 
     bi_bid_price, bi_ask_price, bi_spread = get_binance_price(symbol)
     by_bid_price, by_ask_price, by_spread = get_bybit_price(symbol)
 
     if (by_ask_price - bi_bid_price) / bi_bid_price > seuil:
         return True
-    # elif  (bi_ask_price - by_bid_price) / by_bid_price > seuil: #cannot short on binance
-    # return True
+    #elif  (bi_ask_price - by_bid_price) / by_bid_price > seuil: #cannot short on binance
+        #return True
+    else:
+        return False
+
+def is_to_close(symbol, seuil):  # Boolean function which returns true if the price difference is negligeable to the Seuil between 0 and 1
+
+    bi_bid_price, bi_ask_price, bi_spread = get_binance_price(symbol)
+    by_bid_price, by_ask_price, by_spread = get_bybit_price(symbol)
+
+    if (by_ask_price - bi_bid_price) / bi_bid_price < seuil:
+        return True
     else:
         return False
 
 
-def binance_order(side, quantity, trading_pair):  # side : either "SIDE_SELL" or "SIDE_BUY", attention à la quantité minimum,
+def binance_order(Side, quantity, trading_pair) : # Side : either SIDE_SELL or SIDE_BUY, attention à la quantité minimum. EX : binance_order(SIDE_BUY, 0.03, "BNBUSDT")
 
     client = Client(BINANCE_API_KEY, BINANCE_API_SECRET)
-
-    # Set the trading pair, order type, and quantity for your conversion
-    trading_pair = 'SOLUSDT'
     order_type = ORDER_TYPE_MARKET
-    quantity = 0.28  # The amount of ETH you want to sell for BTC
 
     # Place the order
     order = client.create_order(
         symbol=trading_pair,
-        side=SIDE_SELL,
+        side=Side,
         type=order_type,
         quantity=quantity
     )
-
-    # Output the response (order result)
     return print(order)
 
 
-# Function to place an order on Bybit
+#Function to place an order on Bybit
 
-def bybit_order(side, quantity, symbol):
-    timestamp = str(int(time.time() * 1000))
-    params = {
-        'api_key': BYBIT_API_KEY,
-        'side': side,
-        'symbol': symbol,
-        'order_type': 'Market',
-        'qty': quantity,
-        'time_in_force': 'GTC',
-        'timestamp': timestamp,
-    }
+def bybit_order(Side, quantity, trading_pair) : # Side : "Buy" or "Sell", quantity in bracket  trading_pair "SOLUSDT", bybit_order("Buy", "0.1", "SOLUSDT")
 
-    # Generate the signature
-    ordered_params = '&'.join([f"{key}={params[key]}" for key in sorted(params)])
-    signature = hmac.new(BYBIT_API_SECRET.encode(), ordered_params.encode(), hashlib.sha256).hexdigest()
+    session = HTTP(
+        testnet=False,
+        api_key = BYBIT_API_KEY,
+        api_secret = BYBIT_API_SECRET,
+    )
 
-    params['sign'] = signature
+    order = session.place_order(
+        category="linear",
+        symbol=trading_pair,
+        side=Side,
+        orderType="Market",
+        qty=quantity,
+        timeInForce="FillOrKill",
+        isLeverage=0,
+        )
+    return print(order)
 
-    headers = {
-        'api-key': BYBIT_API_KEY
-    }
+# Idée : vérification si les deux positions ont bien été ouvertes pour continuer.
 
-    r = requests.post('https://api.bybit.com/v2/private/order/create', headers=headers, params=params)
-    return r.json()
+
+def main(trading_pair):
+
+    if is_ao(trading_pair, 0.005) :
+
+        binance_order(SIDE_BUY, 0.1, trading_pair)
+        bybit_order("Sell", "0.1", trading_pair)
+
+
+#quand et comment fermer la position ?
+
+#Une fois que l'ordre est placé :
+    if is_to_close(trading_pair, 0.001)
+        binance_order(SIDE_SELL, 0.1, trading_pair)
+        bybit_order("Buy", "0.1", trading_pair)
+
+
+
+
+
+
+
+
+
