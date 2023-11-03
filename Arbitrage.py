@@ -2,9 +2,11 @@ import requests
 import time
 import hashlib
 import hmac
-# import matplotlib.pyplot as plt
-# import numpy as np
-# import math
+import matplotlib.pyplot as plt
+import numpy as np
+import math
+from binance.client import Client
+from binance.enums import *
 
 # Initialize your API Keys and Secrets for Binance and Bybit
 BINANCE_API_KEY = 'FAwoao710g15n9CYv3FXiaclCpGN59V8XK8ipHIyi6wykO6JrSmPa0optsmH02W3'
@@ -56,40 +58,35 @@ def is_ao(symbol, seuil):  # Boolean function which returns true if there exists
 
     if (by_ask_price - bi_bid_price) / bi_bid_price > seuil:
         return True
-    elif (bi_ask_price - by_bid_price) / by_bid_price > seuil:
-        return True
+    #elif  (bi_ask_price - by_bid_price) / by_bid_price > seuil: #cannot short on binance
+        #return True
     else:
         return False
+        
+
+def binance_order(side, quantity, trading_pair) : # side : either "SIDE_SELL" or "SIDE_BUY", attention à la quantité minimum, 
+
+client = Client(BINANCE_API_KEY, BINANCE_API_SECRET)
+
+# Set the trading pair, order type, and quantity for your conversion
+trading_pair = 'SOLUSDT'  
+order_type = ORDER_TYPE_MARKET
+quantity = 0.28  # The amount of ETH you want to sell for BTC
+
+# Place the order
+order = client.create_order(
+    symbol=trading_pair,
+    side=SIDE_SELL,
+    type=order_type,
+    quantity=quantity
+)
+
+# Output the response (order result)
+return print(order)
 
 
-is_ao('TRBUSDT', 0.05)
+#Function to place an order on Bybit
 
-
-# Function to place an order on Binance
-def binance_order(side, quantity, symbol):
-    timestamp = int(time.time() * 1000)
-    params = {
-        'symbol': symbol,
-        'side': side,
-        'type': 'MARKET',
-        'quantity': quantity,
-        'timestamp': timestamp,
-    }
-
-    query_string = '&'.join([f"{key}={value}" for key, value in params.items()])
-    signature = hmac.new(BINANCE_API_SECRET.encode(), query_string.encode(), hashlib.sha256).hexdigest()
-
-    params['signature'] = signature
-
-    headers = {
-        'X-MBX-APIKEY': BINANCE_API_KEY
-    }
-
-    r = requests.post('https://api.binance.com/api/v3/order', headers=headers, params=params)
-    return r.json()
-
-
-# Function to place an order on Bybit
 def bybit_order(side, quantity, symbol):
     timestamp = str(int(time.time() * 1000))
     params = {
@@ -114,6 +111,3 @@ def bybit_order(side, quantity, symbol):
 
     r = requests.post('https://api.bybit.com/v2/private/order/create', headers=headers, params=params)
     return r.json()
-
-
-print(bybit_order("Buy", "0.2", "SOLUSDT"))
