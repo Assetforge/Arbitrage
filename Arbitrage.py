@@ -1,7 +1,5 @@
 import requests
 import time
-import hashlib
-import hmac
 import matplotlib.pyplot as plt
 import numpy as np
 import math
@@ -14,11 +12,6 @@ BINANCE_API_KEY = 'FAwoao710g15n9CYv3FXiaclCpGN59V8XK8ipHIyi6wykO6JrSmPa0optsmH0
 BINANCE_API_SECRET = 'AiP11eVHbtaL73JdlGcNIsO4yaSHMSl8yhCrbRxg9Bb6qPaTPGl8og5dQMn6KMvo'
 BYBIT_API_KEY = '7JeEcSvWEW7c2VGBdI'
 BYBIT_API_SECRET = 'zobIPQ0YIOzkPwiDdM8A8V0P1ZmrCdAQaHZJ'
-
-global binance_position_open
-global bybit_position_open
-binance_position_open = False
-bybit_position_open = False
 
 # Function to get current price from Binance, symbol is a string
 
@@ -81,14 +74,15 @@ def is_to_close(symbol, seuil):  # Boolean function which returns true if the pr
 
 def binance_order(Side, quantity, trading_pair) : # Side : either SIDE_SELL or SIDE_BUY, attention à la quantité minimum. EX : binance_order(SIDE_BUY, 0.03, "BNBUSDT")
 
-
+    global binance_position_open
+    binance_position_open = False
 
     if Side == SIDE_BUY:
         binance_position_open = True
-        print(f"Opening Binance position: BUY {quantity} {trading_pair}")
+        print(f"Opening Binance position: BUY {quantity} {trading_pair}\n")
     elif Side == SIDE_SELL and binance_position_open:
         binance_position_open = False
-        print(f"Closing Binance position: SELL {quantity} {trading_pair}")
+        print(f"Closing Binance position: SELL {quantity} {trading_pair}\n")
 
     client = Client(BINANCE_API_KEY, BINANCE_API_SECRET)
     order_type = ORDER_TYPE_MARKET
@@ -107,14 +101,15 @@ def binance_order(Side, quantity, trading_pair) : # Side : either SIDE_SELL or S
 
 def bybit_order(Side, quantity, trading_pair) : # Side : "Buy" or "Sell", quantity in bracket  trading_pair "SOLUSDT", bybit_order("Buy", "0.1", "SOLUSDT")
 
+    global bybit_position_open
+    bybit_position_open = False
 
-
-    if side == "Sell":
+    if Side == "Sell":
         bybit_position_open = True
-        print(f"Opening Bybit position: SELL {quantity} {trading_pair}")
-    elif side == "Buy" and bybit_position_open:
+        print(f"Opening Bybit position: SELL {quantity} {trading_pair}\n")
+    elif Side == "Buy" and bybit_position_open:
         bybit_position_open = False
-        print(f"Closing Bybit position: BUY {quantity} {trading_pair}")
+        print(f"Closing Bybit position: BUY {quantity} {trading_pair}\n")
 
     session = HTTP(
         testnet=False,
@@ -141,36 +136,26 @@ def main(trading_pair):
 
     while True:  # Infinite loop to keep the script running
         try:
-            if is_ao(trading_pair, 0.001):
-                print("Arbitrage opportunity detected")
+            if is_ao(trading_pair, 0.002) and not binance_position_open :
+                print("Arbitrage opportunity detected. \n")
                 binance_order(SIDE_BUY, 0.2, trading_pair)
                 bybit_order("Sell", "0.2", trading_pair) #add str(quantity) as a parameter in the function
 
-            if is_to_close(trading_pair, 0.001) and is_to_close(trading_pair, 0.001) and binance_position_open and bybit_position_open:
-                print("position closed")
-                binance_order(SIDE_SELL, 0.2, trading_pair)
-                bybit_order("Buy", "0.2", trading_pair)
+            if is_to_close(trading_pair, 0.001) and binance_position_open: # and bybit_position_open
+
+                binance_order(SIDE_SELL, 0.1998, trading_pair)
+                bybit_order("Buy", "0.1998", trading_pair)
+                print("position closed. \n")
 
             if not is_ao(trading_pair, 0.005):
-                print("No arbitrage opportunity at the moment.")
+                print("No arbitrage opportunity at the moment.\n")
+
 
         except Exception as e:
+            break
             print(f"An error occurred: {e}")
 
-        time.sleep(1)  # Wait for 1 second before checking again
+        time.sleep(2)  # Wait for 1 second before checking again
 
-
-
-
-## To add and modify
-
-#Global variables referenced before assignement
-#Find a way to close the position because of the fees the buy quantity is too high to close
-# -> Define criteria and conditions when and how to exit the trade -> Take a look at security issues concerning API Keys
-# -> Define a size limit on transaction -> Number of active position equal to one at first -> Arbitrage of one asset at first
-#
-# IMPROVE SPEED
-
-#RISK MANAGEM
 
 
