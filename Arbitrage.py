@@ -6,12 +6,16 @@ import math
 from binance.client import Client
 from binance.enums import *
 from pybit.unified_trading import HTTP
+from binance.exceptions import BinanceAPIException, BinanceOrderException
+from decimal import Decimal, ROUND_DOWN
 
 # Initialize your API Keys and Secrets for Binance and Bybit
 BINANCE_API_KEY = 'FAwoao710g15n9CYv3FXiaclCpGN59V8XK8ipHIyi6wykO6JrSmPa0optsmH02W3'
 BINANCE_API_SECRET = 'AiP11eVHbtaL73JdlGcNIsO4yaSHMSl8yhCrbRxg9Bb6qPaTPGl8og5dQMn6KMvo'
 BYBIT_API_KEY = '7JeEcSvWEW7c2VGBdI'
 BYBIT_API_SECRET = 'zobIPQ0YIOzkPwiDdM8A8V0P1ZmrCdAQaHZJ'
+
+client = Client(BINANCE_API_KEY, BINANCE_API_SECRET)
 
 # Function to get current price from Binance, symbol is a string
 
@@ -142,9 +146,12 @@ def main(trading_pair):
                 bybit_order("Sell", "0.2", trading_pair) #add str(quantity) as a parameter in the function
 
             if is_to_close(trading_pair, 0.001) and binance_position_open: # and bybit_position_open
+                asset_balance = get_asset_balance("TRB")['free']
+                asset_balance = Decimal(asset_balance)
+                asset_balance_adj = asset_balance.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
 
-                binance_order(SIDE_SELL, 0.1998, trading_pair)
-                bybit_order("Buy", "0.1998", trading_pair)
+                binance_order(SIDE_SELL, asset_balance_adj, trading_pair)
+                bybit_order("Buy", str(asset_balance_adj), trading_pair)
                 print("position closed. \n")
 
             if not is_ao(trading_pair, 0.005):
@@ -155,7 +162,41 @@ def main(trading_pair):
             break
             print(f"An error occurred: {e}")
 
-        time.sleep(2)  # Wait for 1 second before checking again
+        time.sleep(5)  # Wait for 1 second before checking again
+
+
+
+def get_asset_balance(asset):#for BINANCE !
+    # Get the balance of a specific asset
+    account_balance = client.get_asset_balance(asset=asset)
+    return account_balance
+
+# Call the function to display all non-zero spot balances
+def close_position_binance(asset, trading_pair):
+    try:
+        # Get the current balance of the asset you want to sell
+        asset_balance = get_asset_balance(asset)['free']
+        asset_balance = Decimal(asset_balance)
+        asset_balance_adj = asset_balance.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+
+        if asset_balance > 0:
+            # If you have a balance, place a MARKET sell order
+            order = client.order_market_sell(
+                symbol=trading_pair,
+                quantity=asset_balance_adj
+            )
+            return order
+        else:
+            print(f"You don't have any {asset} to sell.")
+            return None
+
+    except BinanceAPIException as e:
+        print(f"Binance API Exception: {e}")
+        return None
+    except BinanceOrderException as e:
+        print(f"Binance Order Exception: {e}")
+        return None
+
 
 
 
