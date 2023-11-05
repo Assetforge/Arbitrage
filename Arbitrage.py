@@ -78,17 +78,12 @@ def is_to_close(symbol, seuil):  # Boolean function which returns true if the pr
 
 def binance_order(Side, quantity, trading_pair) : # Side : either SIDE_SELL or SIDE_BUY, attention à la quantité minimum. EX : binance_order(SIDE_BUY, 0.03, "BNBUSDT")
 
-    global binance_position_open
-    binance_position_open = False
-
     if Side == SIDE_BUY:
-        binance_position_open = True
         print(f"Opening Binance position: BUY {quantity} {trading_pair}\n")
     elif Side == SIDE_SELL and binance_position_open:
-        binance_position_open = False
         print(f"Closing Binance position: SELL {quantity} {trading_pair}\n")
 
-    client = Client(BINANCE_API_KEY, BINANCE_API_SECRET)
+
     order_type = ORDER_TYPE_MARKET
 
     # Place the order
@@ -105,14 +100,9 @@ def binance_order(Side, quantity, trading_pair) : # Side : either SIDE_SELL or S
 
 def bybit_order(Side, quantity, trading_pair) : # Side : "Buy" or "Sell", quantity in bracket  trading_pair "SOLUSDT", bybit_order("Buy", "0.1", "SOLUSDT")
 
-    global bybit_position_open
-    bybit_position_open = False
-
     if Side == "Sell":
-        bybit_position_open = True
         print(f"Opening Bybit position: SELL {quantity} {trading_pair}\n")
     elif Side == "Buy" and bybit_position_open:
-        bybit_position_open = False
         print(f"Closing Bybit position: BUY {quantity} {trading_pair}\n")
 
     session = HTTP(
@@ -138,31 +128,38 @@ def bybit_order(Side, quantity, trading_pair) : # Side : "Buy" or "Sell", quanti
 
 def main(trading_pair):
 
+    bybit_position_open = False
+    binance_position_open = False
     while True:  # Infinite loop to keep the script running
         try:
-            if is_ao(trading_pair, 0.002) and not binance_position_open :
+            if is_ao(trading_pair, 0.005) and not binance_position_open :
                 print("Arbitrage opportunity detected. \n")
-                binance_order(SIDE_BUY, 0.2, trading_pair)
-                bybit_order("Sell", "0.2", trading_pair) #add str(quantity) as a parameter in the function
+                binance_order(SIDE_BUY, 0.5, trading_pair)
+                bybit_order("Sell", "0.5", trading_pair)#add str(quantity) as a parameter in the function
+                binance_position_open = True
 
             if is_to_close(trading_pair, 0.001) and binance_position_open: # and bybit_position_open
-                asset_balance = get_asset_balance("TRB")['free']
+                asset_balance = get_asset_balance("SOL")['free']
                 asset_balance = Decimal(asset_balance)
-                asset_balance_adj = asset_balance.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+                asset_balance_adj = asset_balance.quantize(Decimal('0.01'), rounding=ROUND_DOWN)# A adapter à la crypto arbitrée
 
                 binance_order(SIDE_SELL, asset_balance_adj, trading_pair)
                 bybit_order("Buy", str(asset_balance_adj), trading_pair)
+                binance_position_open = False
                 print("position closed. \n")
 
-            if not is_ao(trading_pair, 0.005):
+            if binance_position_open :
+                print("Waiting to close positions \n")
+
+            if not is_ao(trading_pair, 0.01) and not binance_position_open:
                 print("No arbitrage opportunity at the moment.\n")
 
 
         except Exception as e:
-            break
             print(f"An error occurred: {e}")
+            break
 
-        time.sleep(5)  # Wait for 1 second before checking again
+        time.sleep(2)  # Wait for 1 second before checking again
 
 
 
@@ -196,7 +193,6 @@ def close_position_binance(asset, trading_pair):
     except BinanceOrderException as e:
         print(f"Binance Order Exception: {e}")
         return None
-
 
 
 
