@@ -19,7 +19,6 @@ client = Client(BINANCE_API_KEY, BINANCE_API_SECRET)
 bybit_session = HTTP(testnet=False, api_key=BYBIT_API_KEY, api_secret=BYBIT_API_SECRET)
 binance_session = requests.Session()
 
-
 def get_bi_price(symbol):
     url = f'https://api.binance.com/api/v3/ticker/bookTicker?symbol={symbol}'
     data = binance_session.get(url).json()
@@ -54,10 +53,6 @@ def by_order(side, quantity, trading_pair):
     return bybit_session.place_order(category="linear", symbol=trading_pair, side=side, orderType="Market", qty=quantity, timeInForce="FillOrKill", isLeverage=0)
 
 
-def get_asset_balance(asset):#for BINANCE !
-    return client.get_asset_balance(asset=asset)
-
-
 def main(trading_pair, quantity, seuil_a, seuil_c):
 
     positions_open = False
@@ -72,7 +67,7 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
                 positions_open = True
 
             if is_to_close(trading_pair, seuil_c) and positions_open: # and bybit_position_open
-                asset_balance = Decimal(get_asset_balance(symbol)['free'])
+                asset_balance = Decimal(client.get_asset_balance(asset=symbol)['free'])
                 asset_balance_adj = asset_balance.quantize(Decimal('0.01'), rounding=ROUND_DOWN)# A adapter à la crypto arbitrée
 
                 bi_order(SIDE_SELL, asset_balance_adj, trading_pair)
@@ -86,13 +81,10 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
             if not is_ao(trading_pair, seuil_a) and not positions_open:
                 print("No arbitrage opportunity at the moment.\n")
 
+            time.sleep(2)
 
         except Exception as e:
             print(f"An error occurred: {e}")
             break
-
-        time.sleep(2)  # Wait for 1 second before checking again
-
-
 #main("TRBUSDT", 0.25, 0.007, 0.0001)
 
