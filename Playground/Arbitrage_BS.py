@@ -50,7 +50,6 @@ def get_bybit_price(symbol):
 
     return bid_price, ask_price, spread
 
-
 def is_ao(symbol, seuil):  # Boolean function which returns true if there exists an arbitrage opportunity.
 
     bi_bid_price, bi_ask_price, bi_spread = get_binance_price(symbol)
