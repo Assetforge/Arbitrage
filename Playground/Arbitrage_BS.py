@@ -33,7 +33,6 @@ def get_binance_price(symbol):
 
     return bid_price, ask_price, spread
 
-
 # Function to get current price from Bybit, SYMBUSDT is a string
 
 def get_bybit_price(symbol):
