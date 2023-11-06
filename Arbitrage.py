@@ -10,14 +10,15 @@ from decimal import Decimal, ROUND_DOWN
 # import math
 
 # Initialize your API Keys and Secrets for Binance and Bybit
-BINANCE_API_KEY = ''
-BINANCE_API_SECRET = ''
-BYBIT_API_KEY = ''
-BYBIT_API_SECRET = ''
+BINANCE_API_KEY = 'FAwoao710g15n9CYv3FXiaclCpGN59V8XK8ipHIyi6wykO6JrSmPa0optsmH02W3'
+BINANCE_API_SECRET = 'AiP11eVHbtaL73JdlGcNIsO4yaSHMSl8yhCrbRxg9Bb6qPaTPGl8og5dQMn6KMvo'
+BYBIT_API_KEY = '7JeEcSvWEW7c2VGBdI'
+BYBIT_API_SECRET = 'zobIPQ0YIOzkPwiDdM8A8V0P1ZmrCdAQaHZJ'
 
 client = Client(BINANCE_API_KEY, BINANCE_API_SECRET)
 bybit_session = HTTP(testnet=False, api_key=BYBIT_API_KEY, api_secret=BYBIT_API_SECRET)
 binance_session = requests.Session()
+
 
 def get_bi_price(symbol):
     url = f'https://api.binance.com/api/v3/ticker/bookTicker?symbol={symbol}'
@@ -51,6 +52,17 @@ def bi_order(side, quantity, trading_pair):
 def by_order(side, quantity, trading_pair):
     print(f"{'Opening' if side == 'Sell' else 'Closing'} Bybit position: {side} {quantity} {trading_pair}\n")
     return bybit_session.place_order(category="linear", symbol=trading_pair, side=side, orderType="Market", qty=quantity, timeInForce="FillOrKill", isLeverage=0)
+    
+def telegram_bot_sendtext(bot_message):
+    bot_token = '6394500142:AAGKgJu5SrGzz1eh_Wou-T0-NFaDuXqLH-c'
+    chat_id = "5274262671"
+    send_text1 = 'https://api.telegram.org/bot' + bot_token + \
+                 '/sendMessage?chat_id=' + chat_id + '&parse_mode=Markdown&text=' + bot_message
+    response1 = requests.get(send_text1)
+
+    return (response1.json())
+
+"""trouve le bot_token et chad_id sur internet petit tuot youtube ou autre"""
 
 
 def main(trading_pair, quantity, seuil_a, seuil_c):
@@ -64,6 +76,7 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
                 print("Arbitrage opportunity detected. \n")
                 bi_order(SIDE_BUY, quantity, trading_pair)
                 by_order("Sell", str(quantity), trading_pair)
+                telegram_bot_sendtext("Arbitrage opportunity detected, opening positions")
                 positions_open = True
 
             if is_to_close(trading_pair, seuil_c) and positions_open: # and bybit_position_open
@@ -72,6 +85,7 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
 
                 bi_order(SIDE_SELL, asset_balance_adj, trading_pair)
                 by_order("Buy", str(asset_balance_adj), trading_pair)
+                telegram_bot_sendtext("Positions closed")
                 positions_open = False
                 print("position closed. \n")
 
@@ -81,10 +95,11 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
             if not is_ao(trading_pair, seuil_a) and not positions_open:
                 print("No arbitrage opportunity at the moment.\n")
 
-            time.sleep(2)
+            time.sleep(0.5)
 
         except Exception as e:
+            telegram_bot_sendtext(f"An error occurred: {e}")
             print(f"An error occurred: {e}")
-            break
-#main("TRBUSDT", 0.25, 0.007, 0.0001)
+            #break
+
 
