@@ -25,7 +25,6 @@ def get_bi_price(symbol):
     data = binance_session.get(url).json()
     return float(data['bidPrice']), float(data['askPrice'])
 
-
 def get_by_price(symbol):
     url = f'https://api.bybit.com/v2/public/tickers?symbol={symbol}'
     data = requests.get(url).json()['result'][0]
@@ -52,7 +51,7 @@ def bi_order(side, quantity, trading_pair):
 def by_order(side, quantity, trading_pair):
     print(f"{'Opening' if side == 'Sell' else 'Closing'} Bybit position: {side} {quantity} {trading_pair}\n")
     return bybit_session.place_order(category="linear", symbol=trading_pair, side=side, orderType="Market", qty=quantity, timeInForce="FillOrKill", isLeverage=0)
-    
+
 def telegram_bot_sendtext(bot_message):
     bot_token = '6394500142:AAGKgJu5SrGzz1eh_Wou-T0-NFaDuXqLH-c'
     chat_id = "5274262671"
@@ -61,8 +60,6 @@ def telegram_bot_sendtext(bot_message):
     response1 = requests.get(send_text1)
 
     return (response1.json())
-
-"""trouve le bot_token et chad_id sur internet petit tuot youtube ou autre"""
 
 
 def main(trading_pair, quantity, seuil_a, seuil_c):
@@ -92,8 +89,8 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
             if positions_open :
                 print("Waiting to close positions \n")
 
-            if not is_ao(trading_pair, seuil_a) and not positions_open:
-                print("No arbitrage opportunity at the moment.\n")
+            # if not is_ao(trading_pair, seuil_a) and not positions_open:
+            #     print("No arbitrage opportunity at the moment.\n")
 
             time.sleep(0.5)
 
