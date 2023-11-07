@@ -15,6 +15,10 @@ BINANCE_API_SECRET = 'AiP11eVHbtaL73JdlGcNIsO4yaSHMSl8yhCrbRxg9Bb6qPaTPGl8og5dQM
 BYBIT_API_KEY = '7JeEcSvWEW7c2VGBdI'
 BYBIT_API_SECRET = 'zobIPQ0YIOzkPwiDdM8A8V0P1ZmrCdAQaHZJ'
 
+#Telegram keys
+bot_token = '6394500142:AAGKgJu5SrGzz1eh_Wou-T0-NFaDuXqLH-c'
+chat_id = "5274262671"
+
 client = Client(BINANCE_API_KEY, BINANCE_API_SECRET)
 bybit_session = HTTP(testnet=False, api_key=BYBIT_API_KEY, api_secret=BYBIT_API_SECRET)
 binance_session = requests.Session()
@@ -53,13 +57,19 @@ def by_order(side, quantity, trading_pair):
     return bybit_session.place_order(category="linear", symbol=trading_pair, side=side, orderType="Market", qty=quantity, timeInForce="FillOrKill", isLeverage=0)
 
 def telegram_bot_sendtext(bot_message):
-    bot_token = '6394500142:AAGKgJu5SrGzz1eh_Wou-T0-NFaDuXqLH-c'
-    chat_id = "5274262671"
     send_text1 = 'https://api.telegram.org/bot' + bot_token + \
                  '/sendMessage?chat_id=' + chat_id + '&parse_mode=Markdown&text=' + bot_message
     response1 = requests.get(send_text1)
-
     return (response1.json())
+
+
+def check_for_stop_command():
+    url = f"https://api.telegram.org/bot{bot_token}/getUpdates"
+    response = requests.get(url)
+    messages = response.json().get('result', [])
+    if messages[-1].get('message', {}).get('text', '') == 'Stop' and messages[-1].get('message', {}).get('chat', {}).get('username', '') == 'matheolentz':
+        return True
+    return False
 
 
 def main(trading_pair, quantity, seuil_a, seuil_c):
@@ -92,6 +102,11 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
             # if not is_ao(trading_pair, seuil_a) and not positions_open:
             #     print("No arbitrage opportunity at the moment.\n")
 
+            if check_for_stop_command() :
+                telegram_bot_sendtext("Stop command received. Exiting.")
+                print("Stop command received. Exiting. \n")
+                break
+                
             time.sleep(0.5)
 
         except Exception as e:
