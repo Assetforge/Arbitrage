@@ -35,16 +35,16 @@ def get_by_price(symbol):
     return float(data['bid_price']), float(data['ask_price'])
 
 
-def is_ao(symbol, seuil):  # Boolean function which returns true if there exists an arbitrage opportunity. Seuil between 0 and 1
+def is_ao(symbol, seuil_a):  # Seuil in percent
     bi_bid_price, bi_ask_price = get_bi_price(symbol)
     by_bid_price, by_ask_price = get_by_price(symbol)
-    return (by_ask_price - bi_bid_price) / bi_bid_price > seuil
+    return (by_bid_price - bi_ask_price) / bi_ask_price > 100*seuil_a
 
 
-def is_to_close(symbol, seuil):  # Boolean function which returns true if the price difference is negligeable to the Seuil between 0 and 1
+def is_to_close(symbol, seuil_c): #seuil in percent 
     bi_bid_price, bi_ask_price = get_bi_price(symbol)
     by_bid_price, by_ask_price = get_by_price(symbol)
-    return (by_ask_price - bi_bid_price) / bi_bid_price < seuil
+    return (by_bid_price - bi_ask_price) / bi_ask_price < 100*seuil_c
 
 
 def bi_order(side, quantity, trading_pair):
@@ -86,7 +86,7 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
                 telegram_bot_sendtext("Arbitrage opportunity detected, opening positions")
                 positions_open = True
 
-            if is_to_close(trading_pair, seuil_c) and positions_open: # and bybit_position_open
+            if is_to_close(trading_pair, seuil_c) and positions_open:
                 asset_balance = Decimal(client.get_asset_balance(asset=symbol)['free'])
                 asset_balance_adj = asset_balance.quantize(Decimal('0.01'), rounding=ROUND_DOWN)# A adapter à la crypto arbitrée
 
@@ -106,12 +106,11 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
                 telegram_bot_sendtext("Stop command received. Exiting.")
                 print("Stop command received. Exiting. \n")
                 break
-                
+
             time.sleep(0.5)
 
         except Exception as e:
             telegram_bot_sendtext(f"An error occurred: {e}")
             print(f"An error occurred: {e}")
-            #break
-
-
+            if e == "APIError(code=-1013): Filter failure: NOTIONAL":
+                break
