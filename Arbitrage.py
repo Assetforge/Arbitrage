@@ -34,17 +34,23 @@ def get_by_price(symbol):
     data = requests.get(url).json()['result'][0]
     return float(data['bid_price']), float(data['ask_price'])
 
+def get_by_fr(symbol):
+    url = f'https://api.bybit.com/v2/public/tickers?symbol={symbol}'
+    data = requests.get(url).json()['result'][0]
+    return float(data['funding_rate'])
 
-def is_ao(symbol, seuil_a):  # Seuil in percent
+def is_ao(symbol, seuil_a):  # Seuil in percent, fees adjusted
     bi_bid_price, bi_ask_price = get_bi_price(symbol)
     by_bid_price, by_ask_price = get_by_price(symbol)
-    return (by_bid_price - bi_ask_price) / bi_ask_price > 100*seuil_a
+    fee_by, fee_bi = 0.055/100, 0.1/100
+    return ( (1-fee_by)*by_bid_price - (1+fee_bi)*bi_ask_price )/bi_ask_price > seuil_a/100
 
 
-def is_to_close(symbol, seuil_c): #seuil in percent 
+def is_to_close(symbol, seuil_c): #seuil in percent
     bi_bid_price, bi_ask_price = get_bi_price(symbol)
     by_bid_price, by_ask_price = get_by_price(symbol)
-    return (by_bid_price - bi_ask_price) / bi_ask_price < 100*seuil_c
+    fee_by, fee_bi = 0.055/100, 0.1/100
+    return ( (1-fee_by)*by_bid_price - (1+fee_bi)*bi_ask_price )/bi_ask_price < seuil_c/100
 
 
 def bi_order(side, quantity, trading_pair):
@@ -55,6 +61,7 @@ def bi_order(side, quantity, trading_pair):
 def by_order(side, quantity, trading_pair):
     print(f"{'Opening' if side == 'Sell' else 'Closing'} Bybit position: {side} {quantity} {trading_pair}\n")
     return bybit_session.place_order(category="linear", symbol=trading_pair, side=side, orderType="Market", qty=quantity, timeInForce="FillOrKill", isLeverage=0)
+
 
 def telegram_bot_sendtext(bot_message):
     send_text1 = 'https://api.telegram.org/bot' + bot_token + \
@@ -107,10 +114,10 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
                 print("Stop command received. Exiting. \n")
                 break
 
-            time.sleep(0.5)
+            #time.sleep(0.5)
 
         except Exception as e:
             telegram_bot_sendtext(f"An error occurred: {e}")
             print(f"An error occurred: {e}")
-            if e == "APIError(code=-1013): Filter failure: NOTIONAL":
+            if str(e) == "APIError(code=-1013): Filter failure: NOTIONAL":
                 break
