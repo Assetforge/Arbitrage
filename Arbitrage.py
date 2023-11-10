@@ -1,5 +1,7 @@
 import requests
 import time
+import aiohttp
+import asyncio
 import matplotlib.pyplot as plt
 from binance.client import Client
 from binance.enums import *
@@ -8,7 +10,7 @@ from binance.exceptions import BinanceAPIException, BinanceOrderException
 from decimal import Decimal, ROUND_DOWN
 # import numpy as np
 # import math
-
+## Keys and global variables
 # Initialize your API Keys and Secrets for Binance and Bybit
 BINANCE_API_KEY = 'FAwoao710g15n9CYv3FXiaclCpGN59V8XK8ipHIyi6wykO6JrSmPa0optsmH02W3'
 BINANCE_API_SECRET = 'AiP11eVHbtaL73JdlGcNIsO4yaSHMSl8yhCrbRxg9Bb6qPaTPGl8og5dQMn6KMvo'
@@ -23,15 +25,18 @@ client = Client(BINANCE_API_KEY, BINANCE_API_SECRET)
 bybit_session = HTTP(testnet=False, api_key=BYBIT_API_KEY, api_secret=BYBIT_API_SECRET)
 binance_session = requests.Session()
 
+#global variables
+fee_by, fee_bi = 0.055/100, 0.1/100
+positions_open = False
+
+## Functions
 
 def get_bi_price(symbol):
-    url = f'https://api.binance.com/api/v3/ticker/bookTicker?symbol={symbol}'
-    data = binance_session.get(url).json()
+    data = binance_session.get(f'https://api.binance.com/api/v3/ticker/bookTicker?symbol={symbol}').json()
     return float(data['bidPrice']), float(data['askPrice'])
 
 def get_by_price(symbol):
-    url = f'https://api.bybit.com/v2/public/tickers?symbol={symbol}'
-    data = requests.get(url).json()['result'][0]
+    data = requests.get(f'https://api.bybit.com/v2/public/tickers?symbol={symbol}').json()['result'][0]
     return float(data['bid_price']), float(data['ask_price'])
 
 def get_by_fr(symbol):
@@ -39,28 +44,12 @@ def get_by_fr(symbol):
     data = requests.get(url).json()['result'][0]
     return float(data['funding_rate'])
 
-def is_ao(symbol, seuil_a):  # Seuil in percent, fees adjusted
-    bi_bid_price, bi_ask_price = get_bi_price(symbol)
-    by_bid_price, by_ask_price = get_by_price(symbol)
-    fee_by, fee_bi = 0.055/100, 0.1/100
-    return ( (1-fee_by)*by_bid_price - (1+fee_bi)*bi_ask_price )/bi_ask_price > seuil_a/100
-
-
-def is_to_close(symbol, seuil_c): #seuil in percent
-    bi_bid_price, bi_ask_price = get_bi_price(symbol)
-    by_bid_price, by_ask_price = get_by_price(symbol)
-    fee_by, fee_bi = 0.055/100, 0.1/100
-    return ( (1-fee_by)*by_bid_price - (1+fee_bi)*bi_ask_price )/bi_ask_price < seuil_c/100
-
-
 def bi_order(side, quantity, trading_pair):
-    print(f"{'Opening' if side == SIDE_BUY else 'Closing'} Binance position: {side} {quantity} {trading_pair}\n")
     return client.create_order(symbol=trading_pair, side=side, type=ORDER_TYPE_MARKET, quantity=quantity)
 
 
 def by_order(side, quantity, trading_pair):
-    print(f"{'Opening' if side == 'Sell' else 'Closing'} Bybit position: {side} {quantity} {trading_pair}\n")
-    return bybit_session.place_order(category="linear", symbol=trading_pair, side=side, orderType="Market", qty=quantity, timeInForce="FillOrKill", isLeverage=0)
+    return bybit_session.place_order(category="linear", symbol=trading_pair, side=side, orderType="Market", qty=str(quantity), timeInForce="FillOrKill", isLeverage=0)
 
 
 def telegram_bot_sendtext(bot_message):
@@ -78,42 +67,43 @@ def check_for_stop_command():
         return True
     return False
 
+## Main function
 
 def main(trading_pair, quantity, seuil_a, seuil_c):
-
-    positions_open = False
+    global positions_open
     symbol = trading_pair.replace("USDT", "")
 
     while True:
         try:
-            if is_ao(trading_pair, seuil_a) and not positions_open :
-                print("Arbitrage opportunity detected. \n")
+            bi_bp, bi_ap = get_bi_price(trading_pair) #binance bid price and ask price
+            by_bp, by_ap = get_by_price(trading_pair)
+            is_ao = ((1-fee_by)*by_bp - (1+fee_bi)*bi_ap )/bi_ap > seuil_a/100
+            is_to_close = (by_bp - bi_ap)/bi_ap < seuil_c/100
+
+            if is_ao and not positions_open :
                 bi_order(SIDE_BUY, quantity, trading_pair)
-                by_order("Sell", str(quantity), trading_pair)
+                by_order("Sell", quantity, trading_pair)
+                print("Arbitrage opportunity detected. \n")
                 telegram_bot_sendtext("Arbitrage opportunity detected, opening positions")
                 positions_open = True
 
-            if is_to_close(trading_pair, seuil_c) and positions_open:
-                asset_balance = Decimal(client.get_asset_balance(asset=symbol)['free'])
-                asset_balance_adj = asset_balance.quantize(Decimal('0.01'), rounding=ROUND_DOWN)# A adapter à la crypto arbitrée
-
-                bi_order(SIDE_SELL, asset_balance_adj, trading_pair)
-                by_order("Buy", str(asset_balance_adj), trading_pair)
+            elif is_to_close and positions_open:
+                bi_order(SIDE_SELL, quantity, trading_pair)
+                by_order("Buy", quantity, trading_pair)
                 telegram_bot_sendtext("Positions closed")
+                print("Positions closed. \n")
                 positions_open = False
-                print("position closed. \n")
 
-            if positions_open :
-                print("Waiting to close positions \n")
-
-            # if not is_ao(trading_pair, seuil_a) and not positions_open:
+            # if positions_open :
+            #     print("Waiting to close positions \n")
+            #
+            # elif not is_ao and not positions_open:
             #     print("No arbitrage opportunity at the moment.\n")
 
-            if check_for_stop_command() :
-                telegram_bot_sendtext("Stop command received. Exiting.")
-                print("Stop command received. Exiting. \n")
-                break
-
+            # if check_for_stop_command() :
+            #     telegram_bot_sendtext("Stop command received. Exiting.")
+            #     print("Stop command received. Exiting. \n")
+            #     break
             #time.sleep(0.5)
 
         except Exception as e:
@@ -121,3 +111,8 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
             print(f"An error occurred: {e}")
             if str(e) == "APIError(code=-1013): Filter failure: NOTIONAL":
                 break
+            elif str(e)=="('Connection aborted.', OSError(50, 'Network is down'))":
+                break
+            elif str(e)=="('Connection aborted.', TimeoutError(60, 'Operation timed out'))":
+                break
+            #
