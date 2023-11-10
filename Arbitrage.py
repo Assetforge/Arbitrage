@@ -1,6 +1,7 @@
 import requests
 import time
 import aiohttp
+import threading
 import asyncio
 import matplotlib.pyplot as plt
 from binance.client import Client
@@ -31,25 +32,58 @@ positions_open = False
 
 ## Functions
 
-def get_bi_price(symbol):
-    data = binance_session.get(f'https://api.binance.com/api/v3/ticker/bookTicker?symbol={symbol}').json()
-    return float(data['bidPrice']), float(data['askPrice'])
-
-def get_by_price(symbol):
-    data = requests.get(f'https://api.bybit.com/v2/public/tickers?symbol={symbol}').json()['result'][0]
-    return float(data['bid_price']), float(data['ask_price'])
 
 def get_by_fr(symbol):
     url = f'https://api.bybit.com/v2/public/tickers?symbol={symbol}'
     data = requests.get(url).json()['result'][0]
     return float(data['funding_rate'])
 
-def bi_order(side, quantity, trading_pair):
+def get_bi_price(symbol, result_dict):
+    data = binance_session.get(f'https://api.binance.com/api/v3/ticker/bookTicker?symbol={symbol}').json()
+    result_dict["bi"] = float(data['bidPrice']), float(data['askPrice'])
+
+def get_by_price(symbol, result_dict):
+    data = requests.get(f'https://api.bybit.com/v2/public/tickers?symbol={symbol}').json()['result'][0]
+    result_dict["by"] = float(data['bid_price']), float(data['ask_price'])
+
+def fetch_prices_parallel(trading_pair):
+    result_dict = {}
+    threads = []
+
+    bi_thread = threading.Thread(target=get_bi_price, args=(trading_pair, result_dict))
+    by_thread = threading.Thread(target=get_by_price, args=(trading_pair, result_dict))
+
+    threads.extend([bi_thread, by_thread])
+
+    bi_thread.start()
+    by_thread.start()
+
+    for thread in threads:
+        thread.join()
+
+    return result_dict
+
+def bi_order(trading_pair, side, quantity ):
     return client.create_order(symbol=trading_pair, side=side, type=ORDER_TYPE_MARKET, quantity=quantity)
 
 
-def by_order(side, quantity, trading_pair):
+def by_order(trading_pair, side, quantity):
     return bybit_session.place_order(category="linear", symbol=trading_pair, side=side, orderType="Market", qty=str(quantity), timeInForce="FillOrKill", isLeverage=0)
+
+
+def place_orders_concurrently(trading_pair, bi_side, by_side, quantity):
+    threads = []
+
+    bi_thread = threading.Thread(target=bi_order, args=(trading_pair, bi_side, quantity))
+    by_thread = threading.Thread(target=by_order, args=(trading_pair, by_side, quantity))
+
+    threads.extend([bi_thread, by_thread])
+
+    bi_thread.start()
+    by_thread.start()
+
+    for thread in threads:
+        thread.join()
 
 
 def telegram_bot_sendtext(bot_message):
@@ -75,21 +109,20 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
 
     while True:
         try:
-            bi_bp, bi_ap = get_bi_price(trading_pair) #binance bid price and ask price
-            by_bp, by_ap = get_by_price(trading_pair)
+            result_dict = fetch_prices_parallel(trading_pair)
+            bi_bp, bi_ap = result_dict["bi"]
+            by_bp, by_ap = result_dict["by"]
             is_ao = ((1-fee_by)*by_bp - (1+fee_bi)*bi_ap )/bi_ap > seuil_a/100
             is_to_close = (by_bp - bi_ap)/bi_ap < seuil_c/100
 
-            if is_ao and not positions_open :
-                bi_order(SIDE_BUY, quantity, trading_pair)
-                by_order("Sell", quantity, trading_pair)
+            if is_ao and not positions_open:
+                place_orders_concurrently(trading_pair, SIDE_BUY, "Sell", quantity)
                 print("Arbitrage opportunity detected. \n")
                 telegram_bot_sendtext("Arbitrage opportunity detected, opening positions")
                 positions_open = True
 
             elif is_to_close and positions_open:
-                bi_order(SIDE_SELL, quantity, trading_pair)
-                by_order("Buy", quantity, trading_pair)
+                place_orders_concurrently(trading_pair, SIDE_SELL, "Buy", quantity)
                 telegram_bot_sendtext("Positions closed")
                 print("Positions closed. \n")
                 positions_open = False
@@ -97,8 +130,8 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
             # if positions_open :
             #     print("Waiting to close positions \n")
             #
-            # elif not is_ao and not positions_open:
-            #     print("No arbitrage opportunity at the moment.\n")
+            #elif not is_ao and not positions_open:
+                #print("No arbitrage opportunity at the moment.\n")
 
             # if check_for_stop_command() :
             #     telegram_bot_sendtext("Stop command received. Exiting.")
