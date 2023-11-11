@@ -149,4 +149,5 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
                 break
             elif str(e)=="('Connection aborted.', TimeoutError(60, 'Operation timed out'))":
                 break
-            #
+            elif str(e)=="bi" or str(e)=="by":
+                break
