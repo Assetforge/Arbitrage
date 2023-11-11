@@ -113,7 +113,7 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
             bi_bp, bi_ap = result_dict["bi"]
             by_bp, by_ap = result_dict["by"]
             is_ao = ((1-fee_by)*by_bp - (1+fee_bi)*bi_ap )/bi_ap > seuil_a/100
-            is_to_close = ((1-fee_by)*by_ap - (1+fee_bi)*bi_bp)/bi_bp < seuil_c/100
+            is_to_close = ((1+fee_by)*by_ap - (1-fee_bi)*bi_bp)/bi_bp < seuil_c/100
 
             if is_ao and not positions_open:
                 place_orders_concurrently(trading_pair, SIDE_BUY, "Sell", quantity)
@@ -125,7 +125,7 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
             elif is_to_close and positions_open:
                 place_orders_concurrently(trading_pair, SIDE_SELL, "Buy", quantity)
                 telegram_bot_sendtext(f"Positions closed : Buy Bybit {by_ap}, Sell Binance {bi_bp}")
-                print("fPositions closed : Buy Bybit {by_ap}, Sell Binance {bi_bp}\n")
+                print(f"Positions closed : Buy Bybit {by_ap}, Sell Binance {bi_bp}\n")
                 positions_open = False
 
             # if positions_open :
