@@ -113,18 +113,19 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
             bi_bp, bi_ap = result_dict["bi"]
             by_bp, by_ap = result_dict["by"]
             is_ao = ((1-fee_by)*by_bp - (1+fee_bi)*bi_ap )/bi_ap > seuil_a/100
-            is_to_close = (by_bp - bi_ap)/bi_ap < seuil_c/100
+            is_to_close = ((1-fee_by)*by_ap - (1+fee_bi)*bi_bp)/bi_bp < seuil_c/100
 
             if is_ao and not positions_open:
                 place_orders_concurrently(trading_pair, SIDE_BUY, "Sell", quantity)
-                print("Arbitrage opportunity detected. \n")
-                telegram_bot_sendtext("Arbitrage opportunity detected, opening positions")
+                print(f"Arbitrage opportunity detected : Sell Bybit {by_bp}, Buy Binance {bi_ap} \n")
+                buy, sell = bi_ap, by_bp 
+                telegram_bot_sendtext(f"Arbitrage opportunity detected : Sell Bybit {by_bp}, Buy Binance {bi_ap}")
                 positions_open = True
 
             elif is_to_close and positions_open:
                 place_orders_concurrently(trading_pair, SIDE_SELL, "Buy", quantity)
-                telegram_bot_sendtext("Positions closed")
-                print("Positions closed. \n")
+                telegram_bot_sendtext(f"Positions closed : Buy Bybit {by_ap}, Sell Binance {bi_bp}")
+                print("fPositions closed : Buy Bybit {by_ap}, Sell Binance {bi_bp}\n")
                 positions_open = False
 
             # if positions_open :
@@ -137,7 +138,7 @@ def main(trading_pair, quantity, seuil_a, seuil_c):
             #     telegram_bot_sendtext("Stop command received. Exiting.")
             #     print("Stop command received. Exiting. \n")
             #     break
-            #time.sleep(0.5)
+            #  time.sleep(0.5)
 
         except Exception as e:
             telegram_bot_sendtext(f"An error occurred: {e}")
