@@ -11,6 +11,9 @@ from binance.exceptions import BinanceAPIException, BinanceOrderException
 from decimal import Decimal, ROUND_DOWN
 # import numpy as np
 # import math
+
+
+je suis jean michelle
 ## Keys and global variables
 # Initialize your API Keys and Secrets for Binance and Bybit
 BINANCE_API_KEY = 'FAwoao710g15n9CYv3FXiaclCpGN59V8XK8ipHIyi6wykO6JrSmPa0optsmH02W3'

@@ -1,3 +1,0 @@
-"""
-écrit ton programme ici
-"""
