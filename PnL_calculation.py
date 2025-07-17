@@ -11,10 +11,10 @@ from requests.auth import HTTPBasicAuth
 # import math
 
 # Initialize your API Keys and Secrets for Binance and Bybit
-BINANCE_API_KEY = 'FAwoao710g15n9CYv3FXiaclCpGN59V8XK8ipHIyi6wykO6JrSmPa0optsmH02W3'
-BINANCE_API_SECRET = 'AiP11eVHbtaL73JdlGcNIsO4yaSHMSl8yhCrbRxg9Bb6qPaTPGl8og5dQMn6KMvo'
-BYBIT_API_KEY = '7JeEcSvWEW7c2VGBdI'
-BYBIT_API_SECRET = 'zobIPQ0YIOzkPwiDdM8A8V0P1ZmrCdAQaHZJ'
+BINANCE_API_KEY = ''
+BINANCE_API_SECRET = ''
+BYBIT_API_KEY = ''
+BYBIT_API_SECRET = ''
 
 client = Client(BINANCE_API_KEY, BINANCE_API_SECRET)
 bybit_session = HTTP(testnet=False, api_key=BYBIT_API_KEY, api_secret=BYBIT_API_SECRET)
